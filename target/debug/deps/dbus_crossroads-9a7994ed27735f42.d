@@ -1,0 +1,11 @@
+/home/saddo/Documents/btui/target/debug/deps/dbus_crossroads-9a7994ed27735f42.d: /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/lib.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/context.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/crossroads.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/ifacedesc.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/stdimpl.rs
+
+/home/saddo/Documents/btui/target/debug/deps/libdbus_crossroads-9a7994ed27735f42.rlib: /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/lib.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/context.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/crossroads.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/ifacedesc.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/stdimpl.rs
+
+/home/saddo/Documents/btui/target/debug/deps/libdbus_crossroads-9a7994ed27735f42.rmeta: /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/lib.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/context.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/crossroads.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/ifacedesc.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/stdimpl.rs
+
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/lib.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/context.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/crossroads.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/ifacedesc.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dbus-crossroads-0.5.2/src/stdimpl.rs:

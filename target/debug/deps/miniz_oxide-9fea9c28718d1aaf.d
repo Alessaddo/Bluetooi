@@ -1,0 +1,10 @@
+/home/saddo/Documents/Bluetooi/target/debug/deps/miniz_oxide-9fea9c28718d1aaf.d: /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/lib.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/mod.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/core.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/output_buffer.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/stream.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/shared.rs
+
+/home/saddo/Documents/Bluetooi/target/debug/deps/libminiz_oxide-9fea9c28718d1aaf.rmeta: /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/lib.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/mod.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/core.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/output_buffer.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/stream.rs /home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/shared.rs
+
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/lib.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/mod.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/core.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/output_buffer.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/inflate/stream.rs:
+/home/saddo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/shared.rs:

@@ -1,5 +1,0 @@
-cargo:rerun-if-changed=service_class_uuids.json
-cargo:rerun-if-changed=bluetooth-numbers-database/v1/service_uuids.json
-cargo:rerun-if-changed=bluetooth-numbers-database/v1/characteristic_uuids.json
-cargo:rerun-if-changed=bluetooth-numbers-database/v1/descriptor_uuids.json
-cargo:rerun-if-changed=bluetooth-numbers-database/v1/company_ids.json

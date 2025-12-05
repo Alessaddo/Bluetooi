@@ -1,9 +1,9 @@
 mod manager;
-use bluer::{Device, Session};
-use std::{fs::ReadDir, path::PathBuf, vec};
-use color_eyre::{Result, owo_colors::colors::xterm::DecoOrange};
+use bluer::{Adapter, Session};
+use std::{path::PathBuf, vec};
+use color_eyre::{Result};
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::event::{self, Event, KeyCode}, widgets::{Block,Borders,Paragraph, List, ListItem, ListState}
+    DefaultTerminal, Frame, crossterm::event::{self, Event, KeyCode}, widgets::{Block, Borders, List, ListItem, ListState, Paragraph}
 };
 use std::sync::{Arc, Mutex};
 
@@ -37,7 +37,13 @@ impl AppState {
             };
         }
     }
+
+    fn reset_index(&mut self) {
+        let len = self.devices_list.lock().unwrap().len();
+        self.selected_index = len - 1;
+    }
 }
+
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
@@ -53,7 +59,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run(mut terminal: DefaultTerminal, session: &Session, paired_devices: &mut Vec<bluer::Address>, dir: &PathBuf) -> Result<()> {
-    let adapter: bluer::Adapter = manager::get_adapter(&session).await.expect("Unable to get any adapter");
+    let adapter: Adapter = manager::get_adapter(&session).await.expect("Unable to get any adapter");
     let devices_list = Arc::new(Mutex::new(Vec::<manager::DeviceInfo>::new()));
     
     {
@@ -65,8 +71,9 @@ async fn run(mut terminal: DefaultTerminal, session: &Session, paired_devices: &
     let mut scan_handle: Option<tokio::task::JoinHandle<_>> = None;
     
     loop {
+        let adapter_status: bool = adapter.is_powered().await?;
         terminal.draw(|frame| {
-            render(frame, &app_state);
+            render(frame, &app_state, adapter_status, scan_handle.is_some());
         })?;
 
 
@@ -90,10 +97,11 @@ async fn run(mut terminal: DefaultTerminal, session: &Session, paired_devices: &
                     KeyCode::Char('o') | KeyCode::Char('O') =>
                     {
                         manager::power_adapter(&session).await?;
+                        refresh_device_list(devices_list.clone(), paired_devices, session).await?;
                     }
                     KeyCode::Char('s') | KeyCode::Char('S') =>
                     {
-                        if scan_handle.is_none() & adapter.is_powered().await?
+                        if scan_handle.is_none() & adapter_status
                         {
                             let session_clone = session.clone();
                             let mut paired_clone = paired_devices.clone();
@@ -103,7 +111,7 @@ async fn run(mut terminal: DefaultTerminal, session: &Session, paired_devices: &
                             // Delete previous scan results (devices that aren't paired)
                             {
                                 let mut list = devices_list.lock().unwrap();
-                                list.retain(|x| x.paired != "");
+                                list.retain(|x| x.paired != " ");
                             }
 
                             scan_handle = Some(tokio::spawn(async move {
@@ -121,29 +129,38 @@ async fn run(mut terminal: DefaultTerminal, session: &Session, paired_devices: &
                     }
                     KeyCode::Char('c') | KeyCode::Char('C') | KeyCode::Enter=>
                     {
-                        if adapter.is_powered().await?
+                        if adapter_status
                         {
                             let device_address = app_state.devices_list.lock().unwrap()[app_state.selected_index].address.to_string();
                             manager::dis_connect_device(&session, device_address).await.expect("Error occured while connecting to the selected device.");
+
+                            refresh_device_list(devices_list.clone(), paired_devices, session).await?;
+                            app_state.reset_index();
                         }
                     }
                     KeyCode::Char('p') | KeyCode::Char('P')=>
                     {
-                        if adapter.is_powered().await?{
+                        if adapter_status{
                             let device_address = app_state.devices_list.lock().unwrap()[app_state.selected_index].address.to_string();
                             manager::pair_device(&session, device_address).await.expect("Error occured while pairing to the selected device.");
+
+                            refresh_device_list(devices_list.clone(), paired_devices, session).await?;
+                            app_state.reset_index();
                         }
                     }
                     KeyCode::Char('t') | KeyCode::Char('T')=>
                     {
-                        if adapter.is_powered().await?{
+                        if adapter_status{
                             let device_address = app_state.devices_list.lock().unwrap()[app_state.selected_index].address.to_string();
                             manager::un_trust_device(&session, device_address).await.expect("An error occured");
+
+                            refresh_device_list(devices_list.clone(), paired_devices, session).await?;
+                            app_state.reset_index();
                         }
                     }
                     KeyCode::Char('f') | KeyCode::Char('F')=>
                     {
-                        if adapter.is_powered().await?{
+                        if adapter_status{
                             let device_address = app_state.devices_list.lock().unwrap()[app_state.selected_index].address.to_string();
                             manager::forget_device(&session, device_address, devices_list.clone()).await.expect("An error occured");
                         }
@@ -157,15 +174,32 @@ async fn run(mut terminal: DefaultTerminal, session: &Session, paired_devices: &
 }
 
 
-fn render(frame: &mut Frame, app_state: &AppState) {
+fn render(frame: &mut Frame, app_state: &AppState, adapter_status: bool, scan_status: bool) {
     use ratatui::prelude::*;
 
     let devices = app_state.devices_list.lock().unwrap();
     let items: Vec<ListItem> = devices
         .iter()
         .map(|d| {
-            ListItem::new(format!("[{}] {} ({})   {} | {}", 
-                d.address, d.device_name, d.device_type, d.trusted, d.paired))
+            ListItem::new(format!("{} | {}     {}    [{}] {} {} ", 
+                d.trusted, d.paired, d.device_type, d.address, d.device_name, d.battery))
+                .add_modifier(
+                    if d.paired == ""{
+                        Modifier::BOLD
+                    } else {
+                        Modifier::empty()
+                    }
+                )
+                .style(
+                    if d.paired == "" && adapter_status{
+                        Color::LightGreen
+                    } else if !adapter_status {
+                        Color::Red
+                    } else {
+                        Color::White
+                    }
+
+                )
         })
         .collect();
 
@@ -173,7 +207,18 @@ fn render(frame: &mut Frame, app_state: &AppState) {
     list_state.select(Some(app_state.selected_index));
 
     let list = List::new(items)
-        .block(Block::new().borders(Borders::ALL).title("Devices"))
+        .block(Block::new()
+            .borders(Borders::ALL)
+            .title("Devices")
+            .style(Style::default().fg(
+                if scan_status{
+                    Color::LightYellow
+                } else if adapter_status {
+                    Color::White
+                } else {
+                    Color::Red
+                }
+            )))
         .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD))
         .highlight_symbol(">> ");
 
@@ -193,18 +238,59 @@ fn render(frame: &mut Frame, app_state: &AppState) {
 }
 async fn paired_to_render (devices_list: &mut Vec<manager::DeviceInfo>, paired: &Vec<bluer::Address>, session: &Session) -> bluer::Result<()>
 {
-    let adapter: bluer::Adapter = manager::get_adapter(&session).await.expect("Unable to get any adapter");
+    let icons = manager::build_icon_map();
+    let adapter: Adapter = manager::get_adapter(&session).await.expect("Unable to get any adapter");
     for address in paired
     {
 
         let device = adapter.device(*address)?;
+        let device_icon: String = match device.icon().await {
+            Ok(Some(icon)) => icon.to_string().to_lowercase(),
+            Ok(None) => "unknown".to_string(),
+            Err(_) => "unknown".to_string()
+                            
+        }; 
         let new_device: manager::DeviceInfo = manager::DeviceInfo  
         {
             address: address.to_string(),
             device_name: device.name().await?.unwrap_or("Unknown".to_string()),
-            device_type: device.icon().await.ok().flatten().expect("Unknown"),
-            trusted: if device.is_trusted().await? {"T".to_string()} else {"".to_string()},
-            paired: if device.is_connected().await? {"O".to_string()} else if device.is_paired().await? {"✓".to_string()} else {"".to_string()},
+            device_type: icons
+                .iter()
+                .find(|(key, _)| device_icon.contains(*key))
+                .map(|(_, icon)| *icon)
+                .unwrap_or("")
+                .to_string(),            
+            trusted: if device.is_trusted().await? {
+                "T".to_string()
+            } else {
+                " ".to_string()
+                },
+            paired: if device.is_connected().await?{
+                "".to_string()
+            } else if device.is_paired().await? {
+                "".to_string()
+            } else {
+                "".to_string()
+            },
+            battery: if device.is_connected().await? {
+                let percentage: u8 = match device.battery_percentage().await{
+                    Ok(Some(value)) => value,
+                    Ok(None) => 0,
+                    Err(_) => 0
+                };
+                let bat_icon: String = if percentage>75 {
+                    "󰁹"
+                } else if percentage>50 {
+                    "󰂀"
+                } else if percentage>25 {
+                    "󰁾"
+                } else if percentage>1 {
+                    "󰁻"
+                } else { " " }.to_string();
+                format!("{:?}% {}", percentage, bat_icon)
+            } else {
+                " ".to_string()
+            }
         };
 
         devices_list.push(new_device);
@@ -213,3 +299,18 @@ async fn paired_to_render (devices_list: &mut Vec<manager::DeviceInfo>, paired: 
     Ok(())
 }
 
+
+async fn refresh_device_list(
+    devices_list: Arc<Mutex<Vec<manager::DeviceInfo>>>,
+    paired_devices: &Vec<bluer::Address>,
+    session: &Session
+) -> Result<()> {
+    let mut list = devices_list.lock().unwrap();
+    list.clear();
+    drop(list);
+    
+    let mut list = devices_list.lock().unwrap();
+    paired_to_render(&mut list, paired_devices, session).await?;
+
+    Ok(())
+}

@@ -1,13 +1,15 @@
-use bluer::{Adapter};
+use bluer::{Adapter,Address,AdapterEvent};
 use bluer::{Session};
 use futures::StreamExt;
-use std::fs::ReadDir;
-use std::{io, vec};
-use std::fs;
-use std::fs::File;
-use std::path::PathBuf;
+use std::{
+    io,
+    collections::HashMap,
+    fs,
+    fs::{File,ReadDir},
+    path::PathBuf,
+    sync::{Arc,Mutex}
+};
 use tokio::time::{timeout, Duration};
-use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct DeviceInfo
@@ -17,12 +19,33 @@ pub struct DeviceInfo
     pub device_type: String,
     pub trusted: String,
     pub paired: String,
+    pub battery: String,
+}
+
+pub fn build_icon_map() -> HashMap<&'static str, &'static str> {
+    let mut map = HashMap::new();
+
+    map.insert("headset", "");
+    map.insert("headphone", "");
+    map.insert("speaker", "󰜟");
+    map.insert("mouse", "");
+    map.insert("input-gaming", "󰊴");
+    map.insert("pad", "󰊴");
+    map.insert("controller", "󰊴");
+    map.insert("laptop", "󰌢");
+    map.insert("phone", "");
+    map.insert("card", "󰢮");
+    map.insert("unknown", "");
+    map.insert("tv", "");
+
+
+    map
 }
 
 
-pub async fn initiate (session: &Session, paired_devices: &mut Vec<bluer::Address>) -> bluer::Result<PathBuf>
+pub async fn initiate (session: &Session, paired_devices: &mut Vec<Address>) -> bluer::Result<PathBuf>
 {
-    let adapter: bluer::Adapter = get_adapter(session).await.expect("");
+    let adapter: Adapter = get_adapter(session).await.expect("");
     let dir: PathBuf = create_cache_path(adapter.name());  // check if the directory exist, if not it'll create it
     let path = fs::read_dir(&dir).unwrap();
     load_paired_devices(paired_devices, path, &session).await.expect("error while loading already paired devices...");
@@ -40,7 +63,7 @@ pub async fn get_adapter(session: &Session) -> bluer::Result<Adapter>
 pub fn create_cache_path(ad_name: &str) -> PathBuf
 {
     let mut cache_path = dirs::cache_dir().expect("Could not find cache directory");
-    cache_path.push(format!("blootooi/{}",ad_name));
+    cache_path.push(format!("bluetooi/{}",ad_name));
 
     if !cache_path.exists() 
     {   
@@ -51,9 +74,9 @@ pub fn create_cache_path(ad_name: &str) -> PathBuf
     return cache_path;
 }
 
-pub async fn load_paired_devices(devices_array: &mut Vec<bluer::Address>, directory: ReadDir,session: &Session) -> bluer::Result<()>
+pub async fn load_paired_devices(devices_array: &mut Vec<Address>, directory: ReadDir,session: &Session) -> bluer::Result<()>
 {
-    let adapter: bluer::Adapter = get_adapter(session).await?;
+    let adapter: Adapter = get_adapter(session).await?;
 
     for device_name in directory
     {
@@ -84,36 +107,25 @@ pub async fn load_paired_devices(devices_array: &mut Vec<bluer::Address>, direct
     Ok(())
 }
 
-pub fn print_paired(devices_array: &Vec<bluer::Address>)
-{
-    println!("{:?}", devices_array [1]);
-    for device in devices_array
-    {
-        println!("{:?}", device);
-    }
-}
-
-pub fn read_input() -> String{
+pub fn _read_input() -> String{
 
     let mut input = String::new();
-    io::stdin().read_line(&mut input).expect("error: unable to read user input");
-    //println!("{}",input); //for debug, to remove
+    io::stdin().read_line(&mut input).expect("error: unable to read user input");  
     return input.trim().to_string();
 
 }
 
-pub async fn scan_devices(session: &Session, paired_array: &mut Vec<bluer::Address>, cache_path: &PathBuf, devices_list: Arc<Mutex<Vec<DeviceInfo>>>) -> bluer::Result<()> {
-    let adapter: bluer::Adapter = get_adapter(session).await?;  
+pub async fn scan_devices(session: &Session, paired_array: &mut Vec<Address>, cache_path: &PathBuf, devices_list: Arc<Mutex<Vec<DeviceInfo>>>) -> bluer::Result<()> {
+    let adapter: Adapter = get_adapter(session).await?;  
     let discover = adapter.discover_devices().await?;
     tokio::pin!(discover);
    // started scanning 
     let _scan_result = timeout(Duration::from_secs(30), async {
         while let Some(event) = discover.next().await {
             match event {
-                bluer::AdapterEvent::DeviceAdded(addr) => {
+                AdapterEvent::DeviceAdded(addr) => {
                     let device = adapter.device(addr)?;
                     let name = device.name().await.unwrap_or_default().unwrap_or_default();
-                    let icon = device.icon().await.ok().flatten();
                     
                     if device.is_paired().await? {
                         if !paired_array.iter().any(|d| d == &addr) {
@@ -128,21 +140,39 @@ pub async fn scan_devices(session: &Session, paired_array: &mut Vec<bluer::Addre
                         }
                     }
                     else if !addr.is_empty() && !name.is_empty() {
-                        // Collect the data you need outside the lock
-                        let new_device_info = DeviceInfo {
+
+                        let icons = build_icon_map();
+                        let device_icon: String = match device.icon().await {
+                            Ok(Some(icon)) => icon.to_string().to_lowercase(),
+                            Ok(None) => "unknown".to_string(),
+                            Err(_) => "unknown".to_string()
+                            
+                        };        
+                        let new_device_info = DeviceInfo 
+                        {
                             address: addr.to_string(),
-                            device_name: name.clone(),
-                            device_type: format!("{:?}", icon),
-                            trusted: device.is_trusted().await?.to_string(),
-                            paired: if device.is_connected().await? {"✓".to_string()} else if device.is_paired().await? {"⚭".to_string()} else {"".to_string()},
+                            device_name: device.name().await?.unwrap_or("Unknown".to_string()),
+                            device_type: icons
+                                .iter()
+                                .find(|(key, _)| device_icon.contains(*key))
+                                .map(|(_, icon)| *icon)
+                                .unwrap_or("")
+                                .to_string(),            
+                            trusted: if device.is_trusted().await? {
+                                "T".to_string()
+                            } else {
+                                " ".to_string()
+                            },
+                            paired: if device.is_connected().await? {"O".to_string()} else if device.is_paired().await? {"".to_string()} else {" ".to_string()},
+                            battery: if device.is_connected().await? {
+                                format!("{:?}%", device.battery_percentage().await?.unwrap())
+                            } else {" ".to_string()}
                         };
                         
-                        // Then lock and update quickly
                         {
                             let mut list = devices_list.lock().unwrap();
                             list.push(new_device_info);
-                        } // Lock dropped immediately
-                                            
+                        }                                            
                     }
                 }
                 _ => {} 
@@ -158,16 +188,16 @@ pub async fn scan_devices(session: &Session, paired_array: &mut Vec<bluer::Addre
 */
 pub async fn power_adapter (session: &Session) -> bluer::Result<()>
 {
-    let adapter: bluer::Adapter = get_adapter(session).await?;
+    let adapter: Adapter = get_adapter(session).await?;
     let switch: bool = adapter.is_powered().await.expect("cannot find any adapter");
     let _ = adapter.set_powered(!switch).await;
-    println!("{:?}",switch);
+    //println!("{:?}",switch);
     Ok(())
 }
 
 pub async fn pair_device(session: &Session, address: String) -> bluer::Result<()>
 {
-    let adapter: bluer::Adapter = get_adapter(session).await?;
+    let adapter: Adapter = get_adapter(session).await?;
 
     let device_address = string_to_address(address);
     let device = adapter.device(device_address)?;
@@ -179,19 +209,35 @@ pub async fn pair_device(session: &Session, address: String) -> bluer::Result<()
 
 pub async fn dis_connect_device(session: &Session, address: String) -> bluer::Result<()>
 {
-    let adapter: bluer::Adapter = get_adapter(session).await?;
+    let adapter: Adapter = get_adapter(session).await?;
 
     let device_address = string_to_address(address.clone());
     let device = adapter.device(device_address)?;
 
     if !device.is_paired().await?
     {
-        pair_device(&session, address).await.expect("An error occured while pairing the device.");
+        match pair_device(&session, address).await
+        {
+            Err(_) => {},
+            Ok(_) => {
+                match device.connect().await
+            {
+                Err(_) => {},
+                Ok(_) => {},
+                }
+
+            },
+        }
+
     }
     
-    if !device.is_connected().await.expect("palle")
+    if !device.is_connected().await?
     {
-        device.connect().await?;
+        match device.connect().await
+        {
+            Err(_) => {},
+            Ok(_) => {},
+        }
     }
     else
     {
@@ -202,7 +248,7 @@ pub async fn dis_connect_device(session: &Session, address: String) -> bluer::Re
 
 pub async fn forget_device (session: &Session, address: String, devices_list: Arc<Mutex<Vec<DeviceInfo>>>) -> bluer::Result<()>
 {
-    let adapter: bluer::Adapter = get_adapter(session).await?;
+    let adapter: Adapter = get_adapter(session).await?;
 
     let _ = adapter.remove_device(string_to_address(address.clone())).await?;
 
@@ -216,7 +262,7 @@ pub async fn forget_device (session: &Session, address: String, devices_list: Ar
 
 pub async fn un_trust_device(session: &Session, address: String) -> bluer::Result<()>
 {
-    let adapter: bluer::Adapter = get_adapter(session).await?;
+    let adapter: Adapter = get_adapter(session).await?;
 
     let device = adapter.device(string_to_address(address))?;
     let switch: bool = !device.is_trusted().await.expect("Error occured");
@@ -224,8 +270,8 @@ pub async fn un_trust_device(session: &Session, address: String) -> bluer::Resul
     Ok(())
 }
 
-pub fn string_to_address (string: String) -> bluer::Address
+pub fn string_to_address (string: String) -> Address
 {
-    let new_address: bluer::Address = string[0..17].parse().unwrap();
+    let new_address: Address = string[0..17].parse().unwrap();
     return new_address;
 }
